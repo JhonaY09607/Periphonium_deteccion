@@ -1,0 +1,20 @@
+[Unit]
+Description=CGBInstrusion - Deteccion de intrusion, audio y notificaciones WhatsApp
+After=network-online.target sound.target
+
+[Service]
+Type=simple
+User=tgslo
+WorkingDirectory=/home/tgslo/CGBInstrusion
+ExecStart=/home/tgslo/CGBInstrusion/venv/bin/python3 /home/tgslo/CGBInstrusion/main.py
+Restart=always
+RestartSec=5
+
+# Credenciales SMTP opcionales para el aviso de desconexion de WhatsApp Web.
+# Descomenta y completa si quieres recibir ese correo (ver whatsapp/config.js).
+# Environment=CGB_SMTP_USER=tu_correo@gmail.com
+# Environment=CGB_SMTP_PASS=contraseña_de_aplicacion
+# Environment=CGB_SMTP_TO=destino@gmail.com
+
+[Install]
+WantedBy=multi-user.target
