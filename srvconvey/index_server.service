@@ -1,0 +1,13 @@
+[Unit]
+Description=Servicio de WhatsApp Bot
+After=network-online.target
+
+[Service]
+Type=simple
+User=tglabs
+WorkingDirectory=/home/tglabs/srvconvey/proyecto_index
+ExecStart=/usr/bin/node /home/tglabs/srvconvey/proyecto_index/index.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
