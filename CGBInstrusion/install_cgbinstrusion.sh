@@ -28,7 +28,16 @@ sudo cp "$CURRENT_DIR/asound.conf" /etc/asound.conf
 amixer -c 2 set PCM 4dB || true
 (crontab -l 2>/dev/null; echo "@reboot amixer -c 2 set PCM 4dB") | crontab -
 
-# 4. Entorno virtual Python
+# 4. config.py (no se versiona porque guarda credenciales de la camara)
+if [ ! -f "$CURRENT_DIR/config.py" ]; then
+    echo -e "${color}No existe config.py, creandolo desde config.py.example...\e[0m"
+    cp "$CURRENT_DIR/config.py.example" "$CURRENT_DIR/config.py"
+    echo -e "\e[33mIMPORTANTE: edita config.py y completa CAMERA_IP/CAMERA_USER/CAMERA_PASS antes de arrancar el servicio.\e[0m"
+else
+    echo -e "${color}config.py ya existe, no se toca.\e[0m"
+fi
+
+# 5. Entorno virtual Python
 echo -e "${color}Creando entorno virtual Python e instalando dependencias...\e[0m"
 python3 -m venv "$CURRENT_DIR/venv"
 source "$CURRENT_DIR/venv/bin/activate"
@@ -36,13 +45,13 @@ pip install --upgrade pip
 pip install -r "$CURRENT_DIR/requirements.txt"
 deactivate
 
-# 5. Dependencias del sidecar de WhatsApp
+# 6. Dependencias del sidecar de WhatsApp
 echo -e "${color}Instalando dependencias npm del sidecar de WhatsApp...\e[0m"
 cd "$CURRENT_DIR/whatsapp"
 npm install
 cd "$CURRENT_DIR"
 
-# 6. Servicio systemd unico
+# 7. Servicio systemd unico
 echo -e "${color}Configurando servicio systemd cgbinstrusion.service...\e[0m"
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${CURRENT_DIR}|g" cgbinstrusion.service
 sed -i "s|ExecStart=.*|ExecStart=${CURRENT_DIR}/venv/bin/python3 ${CURRENT_DIR}/main.py|g" cgbinstrusion.service
@@ -52,7 +61,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable cgbinstrusion.service
 
 echo -e "${color}\nINSTALACION COMPLETADA.\e[0m"
-echo -e "${color}Antes de iniciar el servicio revisa CGBInstrusion/config.py y whatsapp/config.js.\e[0m"
+echo -e "${color}Antes de iniciar el servicio completa CAMERA_IP/CAMERA_USER/CAMERA_PASS en"
+echo -e "config.py, y el 'id' del grupo en whatsapp/config.js (ver README).\e[0m"
 echo -e "${color}Inicia el servicio manualmente la primera vez para escanear el QR de WhatsApp:\e[0m"
 echo -e "  ${CURRENT_DIR}/venv/bin/python3 ${CURRENT_DIR}/main.py"
 echo -e "${color}Una vez vinculado, arrancalo como servicio con:\e[0m sudo systemctl start cgbinstrusion.service"
