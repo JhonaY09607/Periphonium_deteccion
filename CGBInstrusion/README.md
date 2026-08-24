@@ -53,6 +53,13 @@ LUGAR          = "Alarma Principal"
 TYPE_OPEN_DOOR = "RELE"
 ALERT_COOLDOWN = 30   # segundos entre alertas de intrusión (audio + WhatsApp)
 
+# Tarjeta/dispositivo ALSA por el que mpg123 saca el audio. Ver "aplay -l"
+# para la lista de tarjetas -- el número de "card N" es el que va acá.
+# Ojo: en una Raspberry Pi la tarjeta 0 suele ser la salida HDMI, no el jack
+# de audífonos/parlantes (por eso el audio puede "reproducirse" sin errores
+# pero no escucharse en ningún lado).
+AUDIO_DEVICE = "hw:2,0"
+
 # Cámara Dahua (detección de intrusión)
 CAMERA_IP   = "10.1.3.219"
 CAMERA_USER = "admin"
@@ -151,6 +158,20 @@ sudo systemctl start cgbinstrusion.service
 | `/stop` | POST | Detiene la reproducción en curso y vacía la cola. |
 
 ## Solución de problemas
+
+**Los logs muestran que el audio se reprodujo (sin errores) pero no se escucha
+nada.** Revisa a qué tarjeta de sonido está apuntando `AUDIO_DEVICE` en `config.py`
+contra la salida real que quieres usar:
+
+```bash
+aplay -l
+```
+
+En una Raspberry Pi la tarjeta 0 suele ser la salida HDMI — si `AUDIO_DEVICE` apunta
+ahí pero los parlantes están en el jack de audífonos (normalmente otra tarjeta, ver
+`asound.conf`), `mpg123` "reproduce" sin errores pero el audio sale por un puerto que
+nadie escucha. También conviene revisar el volumen de esa tarjeta:
+`amixer -c <N>` (que no esté en 0% ni muteado).
 
 **El cliente de WhatsApp nunca queda "listo" / no llegan notificaciones ni mensajes
 entrantes.** Revisa si aparece la línea `Cliente de WhatsApp listo` en los logs:
