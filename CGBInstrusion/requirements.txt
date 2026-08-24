@@ -2,3 +2,7 @@ Flask==3.1.1
 pydub==0.25.1
 gpiozero==2.0.1
 requests==2.32.3
+# Python 3.13 quito el modulo audioop de la libreria estandar; pydub lo
+# necesita. Este paquete lo restaura (solo hace falta en 3.13+, en
+# versiones anteriores de Python ya viene incluido).
+audioop-lts==0.2.2; python_version >= "3.13"
