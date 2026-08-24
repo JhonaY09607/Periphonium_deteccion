@@ -32,6 +32,7 @@ from config import (
     INCLUIR_MAPA,
     ENVIAR_FOTO_EN_ALERTA,
     CAMERA_SNAPSHOT_PATH,
+    AUDIO_DEVICE,
 )
 
 app = Flask(__name__)
@@ -85,7 +86,7 @@ process_lock = threading.Lock()
 def reproducir_con_mpg123(file_path):
     global current_process
     print(f"Reproduciendo: {file_path}")
-    proc = subprocess.Popen(["mpg123", "-a", "hw:0,0", file_path])
+    proc = subprocess.Popen(["mpg123", "-a", AUDIO_DEVICE, file_path])
     with process_lock:
         current_process = proc
     proc.wait()

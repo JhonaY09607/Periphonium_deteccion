@@ -1,0 +1,129 @@
+diff --git a/node_modules/whatsapp-web.js/src/structures/Message.js b/node_modules/whatsapp-web.js/src/structures/Message.js
+index dd977e8..a15d8da 100644
+--- a/node_modules/whatsapp-web.js/src/structures/Message.js
++++ b/node_modules/whatsapp-web.js/src/structures/Message.js
+@@ -35,6 +35,20 @@ class Message extends Base {
+          * @type {object}
+          */
+         this.id = data.id;
++        // Parche local: en builds recientes de WhatsApp Web (2.3000.1043xxx+)
++        // el WID/MsgKey expone el valor serializado como `$1` en vez de
++        // `_serialized`, lo que rompe downloadMedia() y otros métodos que
++        // dependen de this.id._serialized (ver wwebjs/whatsapp-web.js#201830,
++        // #201828, #201833; fix aún no publicado en npm, ver PR #201840).
++        // Se espeja $1 -> _serialized una sola vez acá para no tener que
++        // tocar cada uno de los ~20 usos de this.id._serialized del archivo.
++        if (
++            this.id &&
++            this.id._serialized === undefined &&
++            this.id.$1 !== undefined
++        ) {
++            this.id._serialized = this.id.$1;
++        }
+ 
+         /**
+          * ACK status for the message
+@@ -74,7 +88,7 @@ class Message extends Base {
+          */
+         this.from =
+             typeof data.from === 'object' && data.from !== null
+-                ? data.from._serialized
++                ? (data.from._serialized ?? data.from.$1)
+                 : data.from;
+ 
+         /**
+@@ -86,7 +100,7 @@ class Message extends Base {
+          */
+         this.to =
+             typeof data.to === 'object' && data.to !== null
+-                ? data.to._serialized
++                ? (data.to._serialized ?? data.to.$1)
+                 : data.to;
+ 
+         /**
+@@ -95,7 +109,7 @@ class Message extends Base {
+          */
+         this.author =
+             typeof data.author === 'object' && data.author !== null
+-                ? data.author._serialized
++                ? (data.author._serialized ?? data.author.$1)
+                 : data.author;
+ 
+         /**
+diff --git a/node_modules/whatsapp-web.js/src/util/Injected/Utils.js b/node_modules/whatsapp-web.js/src/util/Injected/Utils.js
+index 540078a..fc83b7c 100644
+--- a/node_modules/whatsapp-web.js/src/util/Injected/Utils.js
++++ b/node_modules/whatsapp-web.js/src/util/Injected/Utils.js
+@@ -828,9 +828,19 @@ exports.LoadUtils = () => {
+             msg.replyButtons = JSON.parse(JSON.stringify(msg.replyButtons));
+         }
+ 
++        // Parche local: WA Web 2.3000.1043xxx+ expone el WID como `$1` en vez
++        // de `_serialized` (ver wwebjs/whatsapp-web.js#201830/#201828/#201840).
++        if (
++            msg.id &&
++            msg.id._serialized === undefined &&
++            msg.id.$1 !== undefined
++        ) {
++            msg.id = Object.assign({}, msg.id, { _serialized: msg.id.$1 });
++        }
++
+         if (typeof msg.id.remote === 'object') {
+             msg.id = Object.assign({}, msg.id, {
+-                remote: msg.id.remote._serialized,
++                remote: msg.id.remote._serialized ?? msg.id.remote.$1,
+             });
+         }
+ 
+@@ -953,7 +963,7 @@ exports.LoadUtils = () => {
+             model.isGroup = true;
+             const chatWid = window
+                 .require('WAWebWidFactory')
+-                .createWid(chat.id._serialized);
++                .createWid(chat.id._serialized ?? chat.id.$1);
+             const groupMetadata =
+                 window.require('WAWebCollections').GroupMetadata ||
+                 window.require('WAWebCollections').WAWebGroupMetadataCollection;
+@@ -981,21 +991,27 @@ exports.LoadUtils = () => {
+ 
+         model.lastMessage = null;
+         if (model.msgs && model.msgs.length) {
+-            const lastMessage = chat.lastReceivedKey
+-                ? window
+-                      .require('WAWebCollections')
+-                      .Msg.get(chat.lastReceivedKey._serialized) ||
+-                  (
+-                      await window
+-                          .require('WAWebCollections')
+-                          .Msg.getMessagesById([
+-                              chat.lastReceivedKey._serialized,
+-                          ])
+-                  )?.messages?.[0]
+-                : null;
+-            lastMessage &&
+-                (model.lastMessage =
+-                    window.WWebJS.getMessageModel(lastMessage));
++            // Parche local: si lastReceivedKey._serialized viene undefined
++            // (ver comentario más arriba sobre WA Web 2.3000.1043xxx+), que
++            // falle solo la resolución del último mensaje y no todo el chat.
++            try {
++                const lastKeyId =
++                    chat.lastReceivedKey?._serialized ??
++                    chat.lastReceivedKey?.$1;
++                const lastMessage = lastKeyId
++                    ? window.require('WAWebCollections').Msg.get(lastKeyId) ||
++                      (
++                          await window
++                              .require('WAWebCollections')
++                              .Msg.getMessagesById([lastKeyId])
++                      )?.messages?.[0]
++                    : null;
++                lastMessage &&
++                    (model.lastMessage =
++                        window.WWebJS.getMessageModel(lastMessage));
++            } catch (_) {
++                model.lastMessage = null;
++            }
+         }
+ 
+         delete model.msgs;

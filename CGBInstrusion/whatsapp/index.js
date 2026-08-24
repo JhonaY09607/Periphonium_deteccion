@@ -41,6 +41,7 @@ setInterval(eliminarAudiosAntiguos, 60 * 60 * 1000);
 // Cliente de WhatsApp
 const client = new Client({
     authStrategy: new LocalAuth(),
+    bypassCSP: true,
     puppeteer: {
         headless: true,
         executablePath: '/usr/bin/chromium',
@@ -164,8 +165,15 @@ async function handleMessage(msg, direction) {
 }
 
 client.on('message', msg => handleMessage(msg, 'incoming'));
-client.on('message_create', msg => {
-    if (msg.fromMe) handleMessage(msg, 'outgoing');
+client.on('message_create', async msg => {
+    if (!msg.fromMe) return;
+    // Al mandar un audio, message_create dispara antes de que WhatsApp termine
+    // de subirlo -- si se llama a downloadMedia() de inmediato suele fallar o
+    // traer datos vacíos. Se espera un poco para que la subida ya haya terminado.
+    if (msg.hasMedia) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    await handleMessage(msg, 'outgoing');
 });
 
 client.on('qr', qr => {
@@ -173,7 +181,14 @@ client.on('qr', qr => {
     qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => console.log('Cliente de WhatsApp listo'));
+client.on('ready', async () => {
+    try {
+        const version = await client.getWWebVersion();
+        console.log(`Cliente de WhatsApp listo (WhatsApp Web ${version})`);
+    } catch {
+        console.log('Cliente de WhatsApp listo');
+    }
+});
 client.on('auth_failure', msg => console.error('Fallo de autenticación:', msg));
 client.on('disconnected', async reason => {
     console.log('Desconectado:', reason);

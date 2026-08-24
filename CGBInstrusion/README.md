@@ -53,6 +53,13 @@ LUGAR          = "Alarma Principal"
 TYPE_OPEN_DOOR = "RELE"
 ALERT_COOLDOWN = 30   # segundos entre alertas de intrusión (audio + WhatsApp)
 
+# Tarjeta/dispositivo ALSA por el que mpg123 saca el audio. Ver "aplay -l"
+# para la lista de tarjetas -- el número de "card N" es el que va acá.
+# Ojo: en una Raspberry Pi la tarjeta 0 suele ser la salida HDMI, no el jack
+# de audífonos/parlantes (por eso el audio puede "reproducirse" sin errores
+# pero no escucharse en ningún lado).
+AUDIO_DEVICE = "hw:2,0"
+
 # Cámara Dahua (detección de intrusión)
 CAMERA_IP   = "10.1.3.219"
 CAMERA_USER = "admin"
@@ -152,6 +159,20 @@ sudo systemctl start cgbinstrusion.service
 
 ## Solución de problemas
 
+**Los logs muestran que el audio se reprodujo (sin errores) pero no se escucha
+nada.** Revisa a qué tarjeta de sonido está apuntando `AUDIO_DEVICE` en `config.py`
+contra la salida real que quieres usar:
+
+```bash
+aplay -l
+```
+
+En una Raspberry Pi la tarjeta 0 suele ser la salida HDMI — si `AUDIO_DEVICE` apunta
+ahí pero los parlantes están en el jack de audífonos (normalmente otra tarjeta, ver
+`asound.conf`), `mpg123` "reproduce" sin errores pero el audio sale por un puerto que
+nadie escucha. También conviene revisar el volumen de esa tarjeta:
+`amixer -c <N>` (que no esté en 0% ni muteado).
+
 **El cliente de WhatsApp nunca queda "listo" / no llegan notificaciones ni mensajes
 entrantes.** Revisa si aparece la línea `Cliente de WhatsApp listo` en los logs:
 
@@ -171,6 +192,27 @@ sudo systemctl restart cgbinstrusion.service
 **Error `Cannot read properties of undefined (reading 'getChat')` al notificar.**
 El `id` del grupo en `whatsapp/config.js` está vacío o mal escrito — revisa la sección
 de configuración de arriba para obtenerlo desde los logs.
+
+**Los audios/fotos no se descargan (`Error procesando multimedia: r: r`).**
+WhatsApp cambió el formato interno de sus mensajes (el ID pasó de `_serialized` a
+`$1` en las versiones nuevas de WhatsApp Web) y `whatsapp-web.js` 1.34.7 todavía no
+lo soporta oficialmente ([issues #201828](https://github.com/wwebjs/whatsapp-web.js/issues/201828),
+[#201830](https://github.com/wwebjs/whatsapp-web.js/issues/201830),
+[#201833](https://github.com/wwebjs/whatsapp-web.js/issues/201833)). Esto ya está
+parchado localmente — ver "Parche de whatsapp-web.js" más abajo. Si vuelve a
+aparecer este error tras actualizar dependencias, revisa que el parche se haya
+aplicado (`npm install` debe mostrar `Applying patches... whatsapp-web.js@... ✔`).
+
+### Parche de `whatsapp-web.js`
+
+`whatsapp/patches/whatsapp-web.js+1.34.7.patch` agrega compatibilidad con el nuevo
+formato de ID de mensaje de WhatsApp Web (respalda a `$1` cuando falta
+`_serialized`), en `Message.js` y `Utils.js`. Se aplica solo, vía
+`"postinstall": "patch-package"` en `whatsapp/package.json`, cada vez que se corre
+`npm install`. **Esto es un parche temporal** — cuando `whatsapp-web.js` publique una
+versión oficial que lo arregle (seguir el PR
+[#201840](https://github.com/wwebjs/whatsapp-web.js/pull/201840)), hay que actualizar
+la librería y borrar `whatsapp/patches/whatsapp-web.js+1.34.7.patch`.
 
 ## Comandos útiles
 
