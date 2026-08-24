@@ -5,8 +5,8 @@ After=network-online.target sound.target
 [Service]
 Type=simple
 User=tgslo
-WorkingDirectory=/home/tgslo/CGBInstrusion
-ExecStart=/home/tgslo/CGBInstrusion/venv/bin/python3 /home/tgslo/CGBInstrusion/main.py
+WorkingDirectory=/home/tgslo/periphonium_deteccion/CGBInstrusion
+ExecStart=/home/tgslo/periphonium_deteccion/CGBInstrusion/venv/bin/python3 /home/tgslo/periphonium_deteccion/CGBInstrusion/main.py
 Restart=always
 RestartSec=5
 
