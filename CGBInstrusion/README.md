@@ -172,6 +172,27 @@ sudo systemctl restart cgbinstrusion.service
 El `id` del grupo en `whatsapp/config.js` está vacío o mal escrito — revisa la sección
 de configuración de arriba para obtenerlo desde los logs.
 
+**Los audios/fotos no se descargan (`Error procesando multimedia: r: r`).**
+WhatsApp cambió el formato interno de sus mensajes (el ID pasó de `_serialized` a
+`$1` en las versiones nuevas de WhatsApp Web) y `whatsapp-web.js` 1.34.7 todavía no
+lo soporta oficialmente ([issues #201828](https://github.com/wwebjs/whatsapp-web.js/issues/201828),
+[#201830](https://github.com/wwebjs/whatsapp-web.js/issues/201830),
+[#201833](https://github.com/wwebjs/whatsapp-web.js/issues/201833)). Esto ya está
+parchado localmente — ver "Parche de whatsapp-web.js" más abajo. Si vuelve a
+aparecer este error tras actualizar dependencias, revisa que el parche se haya
+aplicado (`npm install` debe mostrar `Applying patches... whatsapp-web.js@... ✔`).
+
+### Parche de `whatsapp-web.js`
+
+`whatsapp/patches/whatsapp-web.js+1.34.7.patch` agrega compatibilidad con el nuevo
+formato de ID de mensaje de WhatsApp Web (respalda a `$1` cuando falta
+`_serialized`), en `Message.js` y `Utils.js`. Se aplica solo, vía
+`"postinstall": "patch-package"` en `whatsapp/package.json`, cada vez que se corre
+`npm install`. **Esto es un parche temporal** — cuando `whatsapp-web.js` publique una
+versión oficial que lo arregle (seguir el PR
+[#201840](https://github.com/wwebjs/whatsapp-web.js/pull/201840)), hay que actualizar
+la librería y borrar `whatsapp/patches/whatsapp-web.js+1.34.7.patch`.
+
 ## Comandos útiles
 
 | Acción | Comando |

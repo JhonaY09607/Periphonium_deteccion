@@ -3,4 +3,5 @@ venv
 whatsapp/node_modules
 whatsapp/.wwebjs_auth
 whatsapp/.wwebjs_cache
+whatsapp/media
 __pycache__
