@@ -130,9 +130,19 @@ chmod +x install_cgbinstrusion.sh
 ./install_cgbinstrusion.sh
 ```
 
-El script instala `mpg123`/`ffmpeg` (audio), Node.js/Chromium (WhatsApp), crea el
-entorno virtual Python, instala las dependencias de `whatsapp/` con `npm install`, y
-registra `cgbinstrusion.service`.
+El script instala `mpg123`/`ffmpeg` (audio), Node.js/Chromium (WhatsApp), copia
+`config.py.example` a `config.py` si todavía no existe, crea el entorno virtual
+Python, instala las dependencias de `whatsapp/` con `npm install`, y registra
+`cgbinstrusion.service`.
+
+`config.py` **no está en el repo** (tiene la contraseña de la cámara, ver
+[Configuración](#configuración) más arriba) — el script lo crea a partir de
+`config.py.example` en el primer arranque. Antes de seguir, completa ahí
+`CAMERA_IP`, `CAMERA_USER` y `CAMERA_PASS` con los datos reales de tu cámara:
+
+```bash
+nano config.py
+```
 
 **Primer arranque manual** (para escanear el QR de WhatsApp):
 

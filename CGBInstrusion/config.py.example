@@ -1,0 +1,41 @@
+LED_PIN        = 21
+LUGAR          = "Alarma Principal"
+TYPE_OPEN_DOOR = "RELE"
+ALERT_COOLDOWN = 30  # segundos entre alertas de intrusion (audio + WhatsApp)
+
+# Tarjeta/dispositivo ALSA por el que mpg123 saca el audio. Ver las tarjetas
+# disponibles con "aplay -l" -- el numero de "card N" es el que va aca.
+# Ojo: la tarjeta 0 suele ser la salida HDMI, no el jack de audifonos/parlantes.
+AUDIO_DEVICE = "hw:2,0"
+
+# Sidecar de WhatsApp (Node.js / whatsapp-web.js)
+WHATSAPP_SIDECAR_DIR = "whatsapp"
+WHATSAPP_NOTIFY_URL  = "http://127.0.0.1:3001/notify"
+
+# Camara Dahua (deteccion de intrusion) -- completar con los datos reales
+CAMERA_IP   = ""
+CAMERA_USER = ""
+CAMERA_PASS = ""
+
+# Codigos de evento IVS de Dahua que cuentan como "intrusion"
+INTRUSION_EVENT_CODES = ["CrossLineDetection", "CrossRegionDetection"]
+
+# Snapshot (foto) de la camara para adjuntar a la alerta de WhatsApp
+ENVIAR_FOTO_EN_ALERTA = True
+CAMERA_SNAPSHOT_PATH  = "/cgi-bin/snapshot.cgi?channel=1"
+
+# ── Mensaje de alerta por WhatsApp ──────────────────────────────────────────
+#
+# Plantilla del mensaje que se manda al grupo cuando hay una intrusion.
+# Placeholders disponibles: {lugar} {fecha} {hora} {origen}
+# (usan las variables de este archivo/de main.py, no hace falta tocar el codigo)
+ALERT_MESSAGE_TEMPLATE = "🚨 Intrusión detectada en {lugar} ({fecha})"
+
+# Datos de ubicacion opcionales. Si se completan y se activa el flag
+# correspondiente, se agregan como lineas extra debajo del mensaje principal.
+DIRECCION               = ""     # ej. "Av. Siempre Viva 123, Ciudad"
+INCLUIR_DIRECCION       = False  # True para incluir la linea de direccion
+
+UBICACION_LAT           = None   # ej. -12.0464
+UBICACION_LON           = None   # ej. -77.0428
+INCLUIR_MAPA            = False  # True para incluir un link a Google Maps
