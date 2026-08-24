@@ -2,7 +2,7 @@ const fs = require('fs/promises');
 const http = require('http');
 const axios = require('axios');
 const path = require('path');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const FormData = require('form-data');
 const qrcode = require('qrcode-terminal');
 const {
@@ -130,9 +130,14 @@ async function handleMessage(msg, direction) {
     for (const grupo of gruposWhatsApp) {
         if (msg.to === grupo.id || msg.from === grupo.id) {
             try {
-                if (msg.hasMedia) {
-                    console.log(`Tipo multimedia: ${msg.mimetype}`);
+                // Solo se descargan audios/notas de voz (perifoneo). Se ignoran fotos,
+                // videos, stickers, etc. -- incluye las fotos que el propio bot manda
+                // con las alertas de intrusión, que no deben reenviarse a Flask.
+                if (msg.hasMedia && ['audio', 'ptt'].includes(msg.type)) {
+                    console.log(`Tipo multimedia: ${msg.type}`);
                     await handleMedia(msg, grupo.raspberryIPs, direction);
+                } else if (msg.hasMedia) {
+                    console.log(`Multimedia ignorada (tipo: ${msg.type})`);
                 } else {
                     const texto = msg.body.trim().toUpperCase();
                     console.log(`Texto: ${texto}`);
@@ -185,11 +190,15 @@ client.initialize().catch(console.error);
 // main.py (Flask) llama a POST /notify cuando la cámara detecta una intrusión,
 // para que este sidecar envíe el aviso a los grupos de WhatsApp configurados.
 
-async function notificarGrupos(mensaje) {
+async function notificarGrupos(mensaje, media) {
     await Promise.all(
         gruposWhatsApp.map(async grupo => {
             try {
-                await client.sendMessage(grupo.id, mensaje);
+                if (media) {
+                    await client.sendMessage(grupo.id, media, { caption: mensaje });
+                } else {
+                    await client.sendMessage(grupo.id, mensaje);
+                }
                 console.log(`Notificación enviada al grupo ${grupo.nombre}`);
             } catch (err) {
                 console.error(`Error enviando notificación al grupo ${grupo.nombre}:`, err.message);
@@ -210,13 +219,16 @@ const server = http.createServer((req, res) => {
         req.on('data', chunk => { body += chunk; });
         req.on('end', async () => {
             try {
-                const { mensaje } = JSON.parse(body || '{}');
+                const { mensaje, foto_base64 } = JSON.parse(body || '{}');
                 if (!mensaje) {
                     res.writeHead(400, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ error: 'Falta el campo "mensaje"' }));
                     return;
                 }
-                await notificarGrupos(mensaje);
+                const media = foto_base64
+                    ? new MessageMedia('image/jpeg', foto_base64, 'intrusion.jpg')
+                    : null;
+                await notificarGrupos(mensaje, media);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Notificación enviada' }));
             } catch (error) {

@@ -6,6 +6,7 @@ import time
 import uuid
 import queue
 import atexit
+import base64
 import requests
 from requests.auth import HTTPDigestAuth
 from io import BytesIO
@@ -23,6 +24,14 @@ from config import (
     CAMERA_USER,
     CAMERA_PASS,
     INTRUSION_EVENT_CODES,
+    ALERT_MESSAGE_TEMPLATE,
+    DIRECCION,
+    INCLUIR_DIRECCION,
+    UBICACION_LAT,
+    UBICACION_LON,
+    INCLUIR_MAPA,
+    ENVIAR_FOTO_EN_ALERTA,
+    CAMERA_SNAPSHOT_PATH,
 )
 
 app = Flask(__name__)
@@ -105,9 +114,33 @@ def reproductor_audio():
 # ── Notificación de WhatsApp (vía sidecar Node) ───────────────────────────────
 
 
-def enviar_alerta_whatsapp(mensaje):
+def obtener_snapshot_camara():
+    """Descarga una foto actual de la camara (formato JPEG) vía HTTP/CGI."""
+    if not CAMERA_IP:
+        return None
+    url = f"http://{CAMERA_IP}{CAMERA_SNAPSHOT_PATH}"
     try:
-        requests.post(WHATSAPP_NOTIFY_URL, json={"mensaje": mensaje}, timeout=5)
+        resp = requests.get(
+            url, auth=HTTPDigestAuth(CAMERA_USER, CAMERA_PASS), timeout=8
+        )
+        resp.raise_for_status()
+        if not resp.headers.get("Content-Type", "").startswith("image"):
+            print(f"[CAMERA] Snapshot con content-type inesperado: {resp.headers.get('Content-Type')}")
+            return None
+        return resp.content
+    except requests.exceptions.RequestException as e:
+        print(f"[CAMERA] No se pudo obtener snapshot: {e}")
+        return None
+
+
+def enviar_alerta_whatsapp(mensaje):
+    """Corre en un hilo aparte: obtiene la foto (si aplica) y notifica al sidecar."""
+    foto_bytes = obtener_snapshot_camara() if ENVIAR_FOTO_EN_ALERTA else None
+    try:
+        payload = {"mensaje": mensaje}
+        if foto_bytes:
+            payload["foto_base64"] = base64.b64encode(foto_bytes).decode("ascii")
+        requests.post(WHATSAPP_NOTIFY_URL, json=payload, timeout=15)
         print(f"[WHATSAPP] Notificación enviada: {mensaje}")
     except Exception as e:
         print(f"[WHATSAPP] No se pudo notificar (¿sidecar caído?): {e}")
@@ -184,6 +217,30 @@ def _detener_audio():
     return jsonify({"message": msg}), 200
 
 
+def construir_mensaje_alerta(origen="desconocido"):
+    """Arma el mensaje de WhatsApp a partir de ALERT_MESSAGE_TEMPLATE (config.py)
+    y le agrega direccion/mapa si estan configurados y activados."""
+    ahora = time.localtime()
+    try:
+        mensaje = ALERT_MESSAGE_TEMPLATE.format(
+            lugar=LUGAR,
+            fecha=time.strftime("%Y-%m-%d %H:%M:%S", ahora),
+            hora=time.strftime("%H:%M:%S", ahora),
+            origen=origen,
+        )
+    except (KeyError, IndexError) as e:
+        print(f"[ALERTA] ALERT_MESSAGE_TEMPLATE mal formada ({e}); usando mensaje por defecto")
+        mensaje = f"🚨 Intrusión detectada en {LUGAR} ({time.strftime('%Y-%m-%d %H:%M:%S', ahora)})"
+
+    if INCLUIR_DIRECCION and DIRECCION:
+        mensaje += f"\n📍 {DIRECCION}"
+
+    if INCLUIR_MAPA and UBICACION_LAT is not None and UBICACION_LON is not None:
+        mensaje += f"\n🗺️ https://maps.google.com/?q={UBICACION_LAT},{UBICACION_LON}"
+
+    return mensaje
+
+
 def procesar_alerta_intrusion(origen="desconocido"):
     """Reproduce el audio de alerta y notifica por WhatsApp, respetando el cooldown."""
     global last_alert_time
@@ -202,7 +259,7 @@ def procesar_alerta_intrusion(origen="desconocido"):
     last_alert_time = current_time
     print(f"[INTRUSION] Audio de alerta agregado a la cola (origen: {origen})")
 
-    mensaje = f"🚨 Intrusión detectada en {LUGAR} ({time.strftime('%Y-%m-%d %H:%M:%S')})"
+    mensaje = construir_mensaje_alerta(origen=origen)
     threading.Thread(target=enviar_alerta_whatsapp, args=(mensaje,), daemon=True).start()
     return True
 

@@ -4,8 +4,8 @@ module.exports = {
     // recibir las notificaciones de intrusión enviadas por main.py (Flask).
     gruposWhatsApp: [
         {
-            nombre: 'Perifoneo CCE',
-            id: '120363404781569805@g.us',
+            nombre: 'Perifoneo',
+            id: '120363409791267877@g.us',
             // Esta misma Raspberry corre a la vez Flask (puerto 5000) y este sidecar,
             // por eso apunta a localhost. Agrega más IPs si reenvías a otros equipos.
             raspberryIPs: ['127.0.0.1']

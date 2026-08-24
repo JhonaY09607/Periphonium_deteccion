@@ -1,2 +1,6 @@
 config.py
 venv
+whatsapp/node_modules
+whatsapp/.wwebjs_auth
+whatsapp/.wwebjs_cache
+__pycache__
